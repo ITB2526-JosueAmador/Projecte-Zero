@@ -19,7 +19,7 @@
 
 | Hostname  | Zona de Red         | Dirección IP/Subred                                         | Servicios y Funciones       | Notas y Credenciales
 | --------- |---------------------|-------------------------------------------------------------|-----------------------------|:-------------------------------------------------------------:|
-| R-NNC     | WAN/DMZ/INTRANET    | WAN: IP por DHCP, DMZ: 10.0.10.1/24, INTRANET: 10.0.20.1/24 | Router / Enrutamiento / NAT | DNS resuelve R-NCC y R-* a este equipo.                       |
+| R-NNC     | WAN/DMZ/INTRANET    | WAN: IP por DHCP, DMZ: 10.0.10.1/24, INTRANET: 10.0.20.1/24 | Router / Enrutamiento / NAT | DNS resuelve R-NCC y *-NNC a este equipo.                     |
 | W-NNC     | DMZ                 | 10.0.10.10/24                                               | Servidor Web, SSH           | Usuario: bchecker / Pw: bchecker121                           |
 | F-NNC     | DMZ                 | 10.0.10.20/24                                               | Servidor FTP, SSH           | Usuario: bchecker / Pw: bchecker121                           |
 | B-NNC     | INTRANET            | 10.0.20.10/24                                               | MySQL, DNS, DHCP, SSH       | Importa el CSV de datos. Usuari: bchecker / Pw: bchecker121   |
@@ -36,3 +36,10 @@
 
 ![Gif Web Server.](Imagenes/webserver.gif)
 
+## Configuración FTP Server
+
+![Gif FTP Server.](Imagenes/ftpserver.gif)
+
+## Configuración DDBB, DNS y DHCP Server (Todo junto en el mismo sistema)
+
+![Gif DDBB, DNS y DHCP Server.](Imagenes/db_dns_dhcp_server.gif)
