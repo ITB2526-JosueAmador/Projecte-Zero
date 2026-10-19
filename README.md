@@ -25,3 +25,9 @@
 | B-NNC     | INTRANET            | 10.0.20.10/24                                               | MySQL, DNS, DHCP, SSH       | Importa el CSV de datos. Usuari: bchecker / Pw: bchecker121   |
 | PC-W11    | INTRANET            | Dinámica (DHCP)                                             | Cliente Windows             | Configuración IP por DHCP.                                    |
 | PC-Linux  | INTRANET            | Dinámica (DHCP)                                             | Cliente Linux               | Configuración IP por DHCP.                                    |
+
+## Flujo de Interconexión
+
+1. **Resolución de Nombres:** El servidor DNS en B-NCC resuelve los nombres R-NCC y R hacia la IP del router.
+2. **Conexión Web - BBDD:** La aplicación web en W-NCC (10.0.10.10) realiza peticiones al motor MySQL en B-NCC (10.0.20.10) cruzando el router a través del puerto 3306.
+3. **Gestión y Acceso Administrado:** Todos los servidores y máquinas disponen de cuenta SSH configurada con la credencial bchecker / bchecker121 para tareas de despliegue y administración.
