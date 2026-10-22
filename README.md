@@ -36,6 +36,32 @@
 
 ![Gif Web Server.](Imagenes/webserver.gif)
 
+__Configuración de Nginx__
+
+```
+events {
+    worker_connections 1024;
+}
+
+http {
+    server {
+        listen 80;
+        listen [::]:80;
+
+        server_name sitioitb.cat;
+        root /var/www/html/;
+        index web.html web.htm;
+        
+        
+
+        location / {
+        try_files $uri $uri/ =404;
+        }
+    }
+}
+
+```
+
 ## Configuración FTP Server
 
 ![Gif FTP Server.](Imagenes/ftpserver.gif)
