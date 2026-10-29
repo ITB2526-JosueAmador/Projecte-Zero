@@ -8,7 +8,7 @@
 
 # Justificación Técnica de la Estructura y Componentes de Red
 
-El presente documento detalla y justifica la arquitectura de red diseñada, explicando el rol de cada subred, interfaz y servidor en la topología.
+A continuación se detalla y justifica la arquitectura de red diseñada, explicando el rol de cada subred, interfaz y servidor en la topología.
 
 ---
 
@@ -103,11 +103,11 @@ Es el núcleo privado de la organización. Aloja los servicios críticos de infr
 
 ### Firewalls y conexiones
 
-|           | Internet   | DMZ1     | LAN       |
+|           | Internet   | DMZ      | LAN       |
 | --------- |------------|----------|:---------:|
-| Internet  | X          |          |           |
-| DMZ1      |            |          |           |
-| LAN       |            |          |           | 
+| Internet  | -          | Sí       | No        |
+| DMZ       | Sí         | -        | Sí        |
+| LAN       | No         | Sí       | -         | 
 
 
 ## Configuración Web Server
