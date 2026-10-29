@@ -2,7 +2,7 @@
 
 ## Estructura de Red
 
-*La red se estructura en torno a un router principal (R-NCC) configurado con tres interfaces de red independientes para cumplir con la segmentación requerida: NAT (WAN), DMZ e Intranet.*
+*La red se estructura en torno a un router principal (R-NNC) configurado con tres interfaces de red independientes para cumplir con la segmentación requerida: NAT (WAN), DMZ e Intranet.*
 
 ![Estructura de la red.](Imagenes/RedProyecto.png)
 
@@ -81,33 +81,44 @@ Es el núcleo privado de la organización. Aloja los servicios críticos de infr
 2. **Zona DMZ (Demilitarized Zone):** Aloja los servicios accesibles públicamente o expuestos.
     * **Servidor WEB (W-NNC):** Muestra la interfaz de la aplicación que consulta los datos.
     * **Servidor FTP (F-NNC):** Gestiona la transferencia de archivos.
-3. **Servidor de Base de Datos y Servicios (B-NCC):** Ejecuta el motor MySQL con el conjunto de datos de equipamiento educativo de Barcelona, además del servidor DNS y DHCP.
+3. **Servidor de Base de Datos y Servicios (B-NNC):** Ejecuta el motor MySQL con el conjunto de datos de equipamiento educativo de Barcelona, además del servidor DNS y DHCP.
 4. **Clientes:** Dos ordenadores locales (uno con SO Windows y otro con SO Linux).
 
 ### Tabla de Direccionamiento IP y Configuración
 
 | Hostname  | Zona de Red         | Dirección IP/Subred                                         | Servicios y Funciones       | Notas y Credenciales                                          |
 | --------- |---------------------|-------------------------------------------------------------|-----------------------------|:-------------------------------------------------------------:|
-| R-NNC     | WAN/DMZ/INTRANET    | WAN: IP por DHCP, DMZ: 10.0.10.1/24, INTRANET: 10.0.20.1/24 | Router / Enrutamiento / NAT | DNS resuelve R-NCC y *-NNC a este equipo.                     |
+| R-NNC     | WAN/DMZ/INTRANET    | WAN: IP por DHCP, DMZ: 10.0.10.1/24, INTRANET: 10.0.20.1/24 | Router / Enrutamiento / NAT | DNS resuelve R-NNC y *-NNC a este equipo.                     |
 | W-NNC     | DMZ                 | 10.0.10.10/24                                               | Servidor Web, SSH           | Usuario: bchecker / Pw: bchecker121                           |
 | F-NNC     | DMZ                 | 10.0.10.20/24                                               | Servidor FTP, SSH           | Usuario: bchecker / Pw: bchecker121                           |
-| B-NNC     | INTRANET            | 10.0.20.10/24                                               | MySQL, DNS, DHCP, SSH       | Importa el CSV de datos. Usuari: bchecker / Pw: bchecker121   |
+| B-NNC     | INTRANET            | 10.0.20.10/24                                               | MySQL, DNS, DHCP, SSH       | Importa el CSV de datos. Usuario: bchecker / Pw: bchecker121  |
 | PC-W11    | INTRANET            | Dinámica (DHCP)                                             | Cliente Windows             | Configuración IP por DHCP.                                    |
 | PC-Linux  | INTRANET            | Dinámica (DHCP)                                             | Cliente Linux               | Configuración IP por DHCP.                                    |
 
 ### Flujo de Interconexión
 
-1. **Resolución de Nombres:** El servidor DNS en B-NCC resuelve los nombres R-NCC y R hacia la IP del router.
-2. **Conexión Web - BBDD:** La aplicación web en W-NCC (10.0.10.10) realiza peticiones al motor MySQL en B-NCC (10.0.20.10) cruzando el router a través del puerto 3306.
+1. **Resolución de Nombres:** El servidor DNS en B-NNC resuelve los nombres R-NNC y R hacia la IP del router.
+2. **Conexión Web - BBDD:** La aplicación web en W-NNC (10.0.10.10) realiza peticiones al motor MySQL en B-NNC (10.0.20.10) cruzando el router a través del puerto 3306.
 3. **Gestión y Acceso Administrado:** Todos los servidores y máquinas disponen de cuenta SSH configurada con la credencial bchecker / bchecker121 para tareas de despliegue y administración.
 
 ### Firewalls y conexiones
 
-|           | Internet   | DMZ      | LAN       |
-| --------- |------------|----------|:---------:|
-| Internet  | -          | Sí       | No        |
-| DMZ       | Sí         | -        | Sí        |
-| LAN       | No         | Sí       | -         | 
+Matriz de conectividad entre zonas (origen en filas, destino en columnas). La política por defecto del router es **denegar** todo lo que no esté permitido explícitamente, y se acepta siempre el tráfico de respuesta de conexiones ya establecidas (`ESTABLISHED, RELATED`).
+
+| Origen \ Destino | Internet                  | DMZ                                                              | LAN                                           |
+| ---------------- |---------------------------|------------------------------------------------------------------|:---------------------------------------------:|
+| **Internet**     | -                         | Sí, solo servicios públicos (HTTP a `W-NNC`, FTP a `F-NNC`)      | No                                            |
+| **DMZ**          | Sí                        | -                                                                | Solo `W-NNC` → `B-NNC` (3306/tcp)             |
+| **LAN**          | Sí (con NAT)              | Sí (web, FTP y administración por SSH)                           | -                                             |
+
+**Justificación de las reglas:**
+
+* **Internet → DMZ (restringido):** Solo se exponen los puertos de los servicios públicos. El resto de puertos de la DMZ, incluido SSH, no son accesibles desde el exterior.
+* **Internet → LAN (No):** La Intranet no es accesible desde fuera. Además, al estar detrás de NAT, no tiene direccionamiento público.
+* **DMZ → LAN (solo `W-NNC` → `B-NNC` por 3306/tcp):** Es la única excepción necesaria, porque la aplicación web consulta la base de datos MySQL. Cualquier otro intento de la DMZ hacia la Intranet queda bloqueado, de modo que un servidor de la DMZ comprometido no puede moverse libremente por la red interna.
+* **LAN → Internet (Sí, con NAT):** Los clientes necesitan salida a Internet y `B-NNC` necesita reenviar consultas DNS externas.
+* **LAN → DMZ (Sí):** Los clientes consumen el servicio web y FTP, y los administradores gestionan los servidores de la DMZ por SSH desde la Intranet.
+* **DMZ → Internet (Sí):** Permite a los servidores de la DMZ descargar actualizaciones y paquetes.
 
 
 ## Configuración Web Server
