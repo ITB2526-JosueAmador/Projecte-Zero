@@ -34,12 +34,11 @@
 
 ### Firewalls y conexiones
 
-|           | Internet   | DMZ1     | DMZ2     | LAN       |
-| --------- |------------|----------|----------|:---------:|
-| Internet  | X          |          |          |           |
-| DMZ1      |            |          |          |           |
-| DMZ2      |            |          |          |           |
-| LAN       |            |          |          |           | 
+|           | Internet   | DMZ1     | LAN       |
+| --------- |------------|----------|:---------:|
+| Internet  | X          |          |           |
+| DMZ1      |            |          |           |
+| LAN       |            |          |           | 
 
 
 ## Configuración Web Server
