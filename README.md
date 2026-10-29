@@ -17,7 +17,7 @@
 
 ### Tabla de Direccionamiento IP y Configuración
 
-| Hostname  | Zona de Red         | Dirección IP/Subred                                         | Servicios y Funciones       | Notas y Credenciales
+| Hostname  | Zona de Red         | Dirección IP/Subred                                         | Servicios y Funciones       | Notas y Credenciales                                          |
 | --------- |---------------------|-------------------------------------------------------------|-----------------------------|:-------------------------------------------------------------:|
 | R-NNC     | WAN/DMZ/INTRANET    | WAN: IP por DHCP, DMZ: 10.0.10.1/24, INTRANET: 10.0.20.1/24 | Router / Enrutamiento / NAT | DNS resuelve R-NCC y *-NNC a este equipo.                     |
 | W-NNC     | DMZ                 | 10.0.10.10/24                                               | Servidor Web, SSH           | Usuario: bchecker / Pw: bchecker121                           |
@@ -31,6 +31,16 @@
 1. **Resolución de Nombres:** El servidor DNS en B-NCC resuelve los nombres R-NCC y R hacia la IP del router.
 2. **Conexión Web - BBDD:** La aplicación web en W-NCC (10.0.10.10) realiza peticiones al motor MySQL en B-NCC (10.0.20.10) cruzando el router a través del puerto 3306.
 3. **Gestión y Acceso Administrado:** Todos los servidores y máquinas disponen de cuenta SSH configurada con la credencial bchecker / bchecker121 para tareas de despliegue y administración.
+
+### Firewalls y conexiones
+
+|           | Internet   | DMZ1     | DMZ2     | LAN       |
+| --------- |------------|----------|----------|:---------:|
+| Internet  | X          |          |          |           |
+| DMZ1      |            |          |          |           |
+| DMZ2      |            |          |          |           |
+| LAN       |            |          |          |           | 
+
 
 ## Configuración Web Server
 
