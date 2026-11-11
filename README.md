@@ -243,9 +243,10 @@ table inet filter {
         # DMZ -> BBDD en B-NNC: solo el servidor web y solo ese puerto
         iifname $DMZ oifname $INTRA ip saddr $WEB ip daddr $BNNC tcp dport 3306 accept
 
-        # DMZ -> Internet: solo lo necesario (DNS, NTP, actualizaciones)
+        # DMZ -> Internet: solo lo necesario (DNS, NTP, actualizaciones, ping)
         iifname $DMZ oifname $WAN tcp dport { 53, 80, 443 } accept
         iifname $DMZ oifname $WAN udp dport { 53, 123 } accept
+        iifname $DMZ oifname $WAN icmp type echo-request accept
     }
 }
 
