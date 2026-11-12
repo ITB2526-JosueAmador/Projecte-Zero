@@ -6,126 +6,115 @@
 
 ![Estructura de la red.](Imagenes/RedProyecto.png)
 
+## Índice
+
+1. [Justificación técnica de la red](#justificación-técnica-de-la-estructura-y-componentes-de-red)
+2. [Resumen y direccionamiento](#resumen-de-la-estructura-segregada)
+3. [Firewalls y conexiones](#firewalls-y-conexiones)
+4. [Configuración Web Server](#configuración-web-server)
+5. [Configuración FTP Server](#configuración-ftp-server)
+6. [Configuración B-NNC (BBDD, DNS, DHCP y SSH)](#configuración-b-nnc-bbdd-dns-dhcp-y-ssh)
+7. [Configuración Router](#configuración-router)
+8. [Control de versiones con Git y GitHub](#control-de-versiones-con-git-y-github)
+9. [Pruebas](#pruebas)
+10. [Problemas encontrados y cómo se arreglaron](#problemas-encontrados-y-cómo-se-arreglaron)
+11. [Estructura del repositorio](#estructura-del-repositorio)
+
 # Justificación Técnica de la Estructura y Componentes de Red
 
-A continuación se detalla y justifica la arquitectura de red diseñada, explicando el rol de cada subred, interfaz y servidor en la topología.
-
----
+A continuación se explica la arquitectura de red, el papel de cada subred, interfaz y servidor.
 
 ## 1. Router / Puerta de Enlace (`R-NNC`)
 
-* **Función y Rol:** Actúa como el elemento central de encaminamiento y frontera de seguridad entre la red exterior (Internet) y las redes privadas de la organización.
-* **Interfaces y Justificación:**
-  * **`Eth 0` (IP WAN / INTERNET):** Conecta hacia la red pública/Internet mediante traducción de direcciones (NAT). Protege la topología privada de ataques externos directos y gestiona el enrutamiento hacia el exterior.
-  * **`Eth 1` (`10.0.10.1/24`):** Puerta de enlace (*Gateway*) para la subred asignada a la **Zona DMZ** (`10.0.10.0/24`).
-  * **`Eth 2` (`10.0.20.1/24`):** Puerta de enlace (*Gateway*) para la subred de la **INTRANET / Red Interna** (`10.0.20.0/24`).
-* **Seguridad (Aislamiento de Zonas):** Separa el tráfico público del privado. Permite aplicar reglas de cortafuegos (*firewall*) para restringir el acceso desde la DMZ hacia la INTRANET, garantizando que un compromiso en los servidores públicos no comprometa la red privada.
+* **Función y rol:** es el elemento central de encaminamiento y la frontera de seguridad entre Internet y las redes privadas.
+* **Interfaces:**
+  * **`Eth 0` (IP WAN / INTERNET):** sale a Internet mediante NAT. Protege la topología privada de ataques externos directos.
+  * **`Eth 1` (`10.0.10.1/24`):** puerta de enlace de la **Zona DMZ** (`10.0.10.0/24`).
+  * **`Eth 2` (`10.0.20.1/24`):** puerta de enlace de la **INTRANET** (`10.0.20.0/24`).
+* **Seguridad:** separa el tráfico público del privado y permite aplicar reglas de cortafuegos para restringir el acceso desde la DMZ hacia la INTRANET, de forma que un servidor público comprometido no comprometa la red privada.
 
----
+## 2. Zona DMZ (Demilitarized Zone), subred `10.0.10.0/24`
 
-## 2. Zona DMZ (Demilitarized Zone) — Subred `10.0.10.0/24`
-
-Aísla los servidores que deben ser accesibles o estar expuestos a peticiones externas o de los clientes, minimizando el impacto de potenciales vulnerabilidades.
+Aísla los servidores que deben ser accesibles desde fuera, para minimizar el impacto de posibles vulnerabilidades.
 
 ### A. Servidor WEB (`W-NNC`)
-* **Dirección IP:** `10.0.10.10/24`
-* **Servicios:** `WEB SRV` / `SSH`
-* **Justificación:**
-  * **Servicio Web:** Muestra la interfaz gráfica/aplicación pública que consulta el conjunto de datos de equipamiento educativo de Barcelona.
-  * **Acceso SSH:** Permite la administración remota segura de la máquina mediante consola sin exponer puertos innecesarios.
-  * **Ubicación en DMZ:** Al alojar contenido público, debe estar separado de la base de datos crítica y de los clientes para aislar amenazas web (ej. ataques HTTP/HTTPS).
+* **IP:** `10.0.10.10/24`
+* **Servicios:** web (nginx) y SSH
+* **Por qué en la DMZ:** aloja contenido público, así que tiene que estar separado de la base de datos y de los clientes.
+* La web muestra la aplicación que consulta los datos de equipamiento educativo de Barcelona.
 
 ### B. Servidor FTP (`F-NNC`)
-* **Dirección IP:** `10.0.10.20/24`
-* **Servicios:** `FTP SRV` / `SSH`
-* **Justificación:**
-  * **Servicio FTP:** Permite la subida, descarga y transferencia gestionada de archivos de datos o recursos.
-  * **Acceso SSH:** Utilizado para la gestión y mantenimiento técnico seguro del servidor.
-  * **Ubicación en DMZ:** El protocolo FTP expone servicios de archivos que deben mantenerse al margen de la INTRANET para evitar la propagación de software malicioso o accesos no autorizados a la red local.
+* **IP:** `10.0.10.20/24`
+* **Servicios:** FTP y SSH
+* **Por qué en la DMZ:** FTP expone un servicio de archivos que tiene que quedar fuera de la INTRANET para evitar que un problema se propague a la red local.
 
----
+## 3. Zona INTRANET (red privada), subred `10.0.20.0/24`
 
-## 3. Zona INTRANET (Red Privada Interna) — Subred `10.0.20.0/24`
+Es el núcleo privado: servicios de infraestructura interna y equipos de usuario.
 
-Es el núcleo privado de la organización. Aloja los servicios críticos de infraestructura interna y los equipos de los usuarios finales.
-
-### A. Servidor de Base de Datos y Servicios Centrales (`B-NNC`)
-* **Dirección IP:** `10.0.20.10/24`
-* **Servicios:** `DNS` / `DHCP` / `BBDD`
-* **Justificación:**
-  * **Base de Datos (BBDD):** Ejecuta el motor MySQL conteniendo la información sensible sobre equipamiento educativo. Al estar en la INTRANET, queda protegida contra accesos directos desde Internet o desde la DMZ (solo el servidor Web realizará consultas autorizadas).
-  * **Servicio DHCP:** Asigna automáticamente direcciones IP, máscaras de red y puertas de enlace a las máquinas clientes de la INTRANET.
-  * **Servicio DNS:** Resuelve los nombres de dominio locales para la infraestructura interna y permite el reenvío de consultas externas.
+### A. Servidor de base de datos y servicios (`B-NNC`)
+* **IP:** `10.0.20.10/24`
+* **Servicios:** MySQL, DNS, DHCP y SSH
+* **Por qué en la INTRANET:** la base de datos queda protegida de accesos directos desde Internet y desde la DMZ. Solo el servidor web hace consultas autorizadas por el puerto 3306.
+* DHCP da IP, máscara, gateway y DNS a los clientes. DNS resuelve los nombres locales y reenvía el resto a servidores externos.
 
 ### B. Cliente Linux
-* **Configuración de Red:** Dinámica mediante `DHCP`
-* **Justificación:** Representa un puesto de trabajo con sistema operativo Linux en la red privada. Recibe su configuración (IP en el rango `10.0.20.X`) automáticamente desde `B-NNC` para navegar, realizar consultas a los servicios corporativos y administrar los servidores mediante SSH.
+Configuración dinámica por DHCP. Recibe IP en el rango `10.0.20.X` desde `B-NNC`.
 
 ### C. Cliente Windows 11 (`W11`)
-* **Configuración de Red:** Dinámica mediante `DHCP`
-* **Justificación:** Representa un equipo cliente con entorno Windows 11 dentro de la red corporativa. Facilita verificar la compatibilidad multiplataforma de la infraestructura (DHCP, resolución DNS y consumo del servicio web).
+Configuración dinámica por DHCP. Sirve para comprobar que DHCP, DNS y el servicio web funcionan también con Windows.
 
----
+## Resumen de la Estructura Segregada
 
-## 4. Resumen de la Estructura Segregada
-
-| Zona | Subred / Rango | Propósito Principal | Máquinas / Funciones |
+| Zona | Subred / rango | Propósito | Máquinas |
 | :--- | :--- | :--- | :--- |
-| **WAN / NAT** | Asignada por Proveedor | Conexión e interacción hacia Internet. | Interface `Eth 0` del Router `R-NNC` |
-| **DMZ** | `10.0.10.0/24` | Exposición de servicios públicos hacia el exterior. | `W-NNC` (`10.0.10.10`) y `F-NNC` (`10.0.10.20`) |
-| **INTRANET** | `10.0.20.0/24` | Servicios de infraestructura críticos y puestos de trabajo. | `B-NNC` (`10.0.20.10`), **Cliente Linux** y **Cliente W11** |
+| WAN / NAT | Asignada por el proveedor | Salida a Internet | Interfaz `Eth 0` de `R-NNC` |
+| DMZ | `10.0.10.0/24` | Servicios públicos | `W-NNC` (`10.0.10.10`) y `F-NNC` (`10.0.10.20`) |
+| INTRANET | `10.0.20.0/24` | Infraestructura y puestos de trabajo | `B-NNC` (`10.0.20.10`), cliente Linux y cliente W11 |
 
-### Distribución de Zonas y Servicios
+### Tabla de direccionamiento IP y configuración
 
-1. **Zona NAT / WAN:** Conecta el router a la red externa/Internet, permitiendo la salida de tráfico mediante traducción de direcciones.
-2. **Zona DMZ (Demilitarized Zone):** Aloja los servicios accesibles públicamente o expuestos.
-    * **Servidor WEB (W-NNC):** Muestra la interfaz de la aplicación que consulta los datos.
-    * **Servidor FTP (F-NNC):** Gestiona la transferencia de archivos.
-3. **Servidor de Base de Datos y Servicios (B-NNC):** Ejecuta el motor MySQL con el conjunto de datos de equipamiento educativo de Barcelona, además del servidor DNS y DHCP.
-4. **Clientes:** Dos ordenadores locales (uno con SO Windows y otro con SO Linux).
+| Hostname | Zona | IP/Subred | Servicios | Notas y credenciales |
+| --- | --- | --- | --- | --- |
+| R-NNC | WAN/DMZ/INTRANET | WAN: DHCP, DMZ: 10.0.10.1/24, INTRANET: 10.0.20.1/24 | Router, enrutamiento, NAT | El DNS resuelve R-NNC, R-NCC y R a este equipo |
+| W-NNC | DMZ | 10.0.10.10/24 | Servidor web, SSH | Usuario: bchecker / Pw: bchecker121 |
+| F-NNC | DMZ | 10.0.10.20/24 | Servidor FTP, SSH | Usuario: bchecker / Pw: bchecker121 |
+| B-NNC | INTRANET | 10.0.20.10/24 | MySQL, DNS, DHCP, SSH | Importa el CSV de datos. Usuario: bchecker / Pw: bchecker121 |
+| PC-W11 | INTRANET | Dinámica (DHCP) | Cliente Windows | IP por DHCP |
+| PC-Linux | INTRANET | Dinámica (DHCP) | Cliente Linux | IP por DHCP |
 
-### Tabla de Direccionamiento IP y Configuración
+Las credenciales son las que da el enunciado y son solo para el entorno de laboratorio.
 
-| Hostname  | Zona de Red         | Dirección IP/Subred                                         | Servicios y Funciones       | Notas y Credenciales                                          |
-| --------- |---------------------|-------------------------------------------------------------|-----------------------------|:-------------------------------------------------------------:|
-| R-NNC     | WAN/DMZ/INTRANET    | WAN: IP por DHCP, DMZ: 10.0.10.1/24, INTRANET: 10.0.20.1/24 | Router / Enrutamiento / NAT | DNS resuelve R-NNC y *-NNC a este equipo.                     |
-| W-NNC     | DMZ                 | 10.0.10.10/24                                               | Servidor Web, SSH           | Usuario: bchecker / Pw: bchecker121                           |
-| F-NNC     | DMZ                 | 10.0.10.20/24                                               | Servidor FTP, SSH           | Usuario: bchecker / Pw: bchecker121                           |
-| B-NNC     | INTRANET            | 10.0.20.10/24                                               | MySQL, DNS, DHCP, SSH       | Importa el CSV de datos. Usuario: bchecker / Pw: bchecker121  |
-| PC-W11    | INTRANET            | Dinámica (DHCP)                                             | Cliente Windows             | Configuración IP por DHCP.                                    |
-| PC-Linux  | INTRANET            | Dinámica (DHCP)                                             | Cliente Linux               | Configuración IP por DHCP.                                    |
+### Flujo de interconexión
 
-### Flujo de Interconexión
+1. **Resolución de nombres:** el DNS de B-NNC resuelve R-NNC, R-NCC y R hacia la IP del router.
+2. **Web a BBDD:** la aplicación web en W-NNC (10.0.10.10) consulta MySQL en B-NNC (10.0.20.10) por el puerto 3306, cruzando el router.
+3. **Administración:** todas las máquinas tienen cuenta SSH con `bchecker` para despliegue y administración.
 
-1. **Resolución de Nombres:** El servidor DNS en B-NNC resuelve los nombres R-NNC y R hacia la IP del router.
-2. **Conexión Web - BBDD:** La aplicación web en W-NNC (10.0.10.10) realiza peticiones al motor MySQL en B-NNC (10.0.20.10) cruzando el router a través del puerto 3306.
-3. **Gestión y Acceso Administrado:** Todos los servidores y máquinas disponen de cuenta SSH configurada con la credencial bchecker / bchecker121 para tareas de despliegue y administración.
+## Firewalls y conexiones
 
-### Firewalls y conexiones
+Matriz de conectividad entre zonas (origen en filas, destino en columnas). La política por defecto del router es **denegar** todo lo que no esté permitido, y siempre se acepta el tráfico de respuesta de conexiones ya establecidas (`ESTABLISHED, RELATED`).
 
-Matriz de conectividad entre zonas (origen en filas, destino en columnas). La política por defecto del router es **denegar** todo lo que no esté permitido explícitamente, y se acepta siempre el tráfico de respuesta de conexiones ya establecidas (`ESTABLISHED, RELATED`).
+| Origen \ Destino | Internet | DMZ | LAN |
+| --- | --- | --- | --- |
+| **Internet** | - | Sí, solo servicios públicos (HTTP a `W-NNC`, FTP a `F-NNC`) | No |
+| **DMZ** | Sí | - | Solo `W-NNC` → `B-NNC` (3306/tcp) |
+| **LAN** | Sí (con NAT) | Sí (web, FTP y administración por SSH) | - |
 
-| Origen \ Destino | Internet                  | DMZ                                                              | LAN                                           |
-| ---------------- |---------------------------|------------------------------------------------------------------|:---------------------------------------------:|
-| **Internet**     | -                         | Sí, solo servicios públicos (HTTP a `W-NNC`, FTP a `F-NNC`)      | No                                            |
-| **DMZ**          | Sí                        | -                                                                | Solo `W-NNC` → `B-NNC` (3306/tcp)             |
-| **LAN**          | Sí (con NAT)              | Sí (web, FTP y administración por SSH)                           | -                                             |
+Justificación de las reglas:
 
-**Justificación de las reglas:**
-
-* **Internet → DMZ (restringido):** Solo se exponen los puertos de los servicios públicos. El resto de puertos de la DMZ, incluido SSH, no son accesibles desde el exterior.
-* **Internet → LAN (No):** La Intranet no es accesible desde fuera. Además, al estar detrás de NAT, no tiene direccionamiento público.
-* **DMZ → LAN (solo `W-NNC` → `B-NNC` por 3306/tcp):** Es la única excepción necesaria, porque la aplicación web consulta la base de datos MySQL. Cualquier otro intento de la DMZ hacia la Intranet queda bloqueado, de modo que un servidor de la DMZ comprometido no puede moverse libremente por la red interna.
-* **LAN → Internet (Sí, con NAT):** Los clientes necesitan salida a Internet y `B-NNC` necesita reenviar consultas DNS externas.
-* **LAN → DMZ (Sí):** Los clientes consumen el servicio web y FTP, y los administradores gestionan los servidores de la DMZ por SSH desde la Intranet.
-* **DMZ → Internet (Sí):** Permite a los servidores de la DMZ descargar actualizaciones y paquetes.
-
+* **Internet → DMZ (restringido):** solo se exponen los puertos de los servicios públicos. El resto, SSH incluido, no es accesible desde fuera.
+* **Internet → LAN (No):** la intranet no es accesible desde fuera y además está detrás de NAT.
+* **DMZ → LAN (solo `W-NNC` → `B-NNC` por 3306/tcp):** es la única excepción, porque la web consulta MySQL. Cualquier otro intento de la DMZ hacia la intranet se bloquea.
+* **LAN → Internet (Sí, con NAT):** los clientes necesitan salida a Internet y `B-NNC` necesita reenviar consultas DNS externas y descargar paquetes.
+* **LAN → DMZ (Sí):** los clientes usan la web y el FTP, y desde la intranet se administran por SSH los servidores de la DMZ.
+* **DMZ → Internet (Sí):** para actualizaciones y paquetes.
 
 ## Configuración Web Server
 
 ![Gif Web Server.](Imagenes/webserver.gif)
 
-__Configuración de Nginx__
+Configuración de Nginx:
 
 ```
 events {
@@ -140,28 +129,250 @@ http {
         server_name sitioitb.cat;
         root /var/www/html/;
         index web.html web.htm;
-        
-        
 
         location / {
         try_files $uri $uri/ =404;
         }
     }
 }
-
 ```
 
 ## Configuración FTP Server
 
 ![Gif FTP Server.](Imagenes/ftpserver.gif)
 
-## Configuración DDBB, DNS y DHCP Server (Todo junto en el mismo sistema)
+## Configuración B-NNC (BBDD, DNS, DHCP y SSH)
 
 ![Gif DDBB, DNS y DHCP Server.](Imagenes/db_dns_dhcp_server.gif)
 
+B-NNC es una máquina Ubuntu Server 22.04 (jammy) en la intranet. Tiene MySQL, DNS, DHCP y SSH en el mismo sistema. Su interfaz `enp3s0` va conectada al router, a la interfaz de la INTRANET (`enp4s0` en el router, `10.0.20.1`).
+
+El enunciado usa B-NNC y B-NCC indistintamente, por eso en `/etc/hosts` y en el DNS están los dos nombres.
+
+### Script automático
+
+Todo lo de esta sección está recogido en un script que se ejecuta con `sudo bash b-nnc.sh` (está en `scripts/b-nnc.sh`). Instala los paquetes, configura los servicios, descarga y carga el CSV, deja la IP fija y al final hace una batería de comprobaciones con `[OK]` / `[FAIL]`. Se puede ejecutar varias veces sin problema. Abajo está explicado paso a paso lo que hace.
+
+### Sistema base y usuario
+
+```
+sudo hostnamectl set-hostname b-nnc
+echo "127.0.1.1 b-nnc.sitioitb.cat b-nnc b-ncc" | sudo tee -a /etc/hosts
+
+sudo useradd -m -s /bin/bash bchecker
+echo "bchecker:bchecker121" | sudo chpasswd
+sudo usermod -aG sudo bchecker
+```
+
+Paquetes (los servicios ya venían instalados, solo había que configurarlos):
+
+```
+sudo apt-get update
+sudo apt-get install -y openssh-server bind9 bind9utils dnsutils isc-dhcp-server mysql-server git curl python3
+```
+
+### Red estática
+
+Fichero `/etc/netplan/01-b-nnc.yaml`:
+
+```
+network:
+  version: 2
+  ethernets:
+    enp3s0:
+      dhcp4: no
+      addresses: [10.0.20.10/24]
+      routes:
+        - to: default
+          via: 10.0.20.1
+      nameservers:
+        addresses: [127.0.0.1]
+        search: [sitioitb.cat]
+```
+
+```
+sudo chmod 600 /etc/netplan/01-b-nnc.yaml
+sudo netplan apply
+ip -br a show enp3s0
+ping -c2 10.0.20.1
+```
+
+Mientras tenía la IP por DHCP salía a Internet para instalar paquetes. Al poner la IP fija, la salida depende del router (ver [problemas](#problemas-encontrados-y-cómo-se-arreglaron)).
+
+### SSH
+
+```
+sudo systemctl enable --now ssh
+systemctl status ssh
+```
+
+Se entra con `bchecker`. Para GitHub se usa otra clave distinta, explicada en la sección de Git.
+
+### DNS (bind9)
+
+En Ubuntu 22.04 el servicio se llama `named` (`bind9` es solo un alias). El requisito del enunciado es que resuelva R-NCC y R hacia el router.
+
+`/etc/bind/named.conf.options`:
+
+```
+options {
+    directory "/var/cache/bind";
+    listen-on { 127.0.0.1; 10.0.20.10; };
+    allow-query { 127.0.0.1; 10.0.10.0/24; 10.0.20.0/24; };
+    recursion yes;
+    allow-recursion { 127.0.0.1; 10.0.10.0/24; 10.0.20.0/24; };
+    forwarders { 8.8.8.8; 1.1.1.1; };
+    dnssec-validation no;
+};
+```
+
+`/etc/bind/named.conf.local`:
+
+```
+zone "sitioitb.cat" { type master; file "/etc/bind/db.sitioitb.cat"; };
+zone "20.0.10.in-addr.arpa" { type master; file "/etc/bind/db.10.0.20"; };
+zone "10.0.10.in-addr.arpa" { type master; file "/etc/bind/db.10.0.10"; };
+```
+
+Zona directa `/etc/bind/db.sitioitb.cat`:
+
+```
+$TTL 86400
+@      IN SOA b-nnc.sitioitb.cat. admin.sitioitb.cat. ( 1 3600 900 604800 86400 )
+@      IN NS  b-nnc.sitioitb.cat.
+@      IN A   10.0.10.10
+r      IN A   10.0.20.1
+r-nnc  IN A   10.0.20.1
+r-ncc  IN A   10.0.20.1
+b-nnc  IN A   10.0.20.10
+b-ncc  IN A   10.0.20.10
+w-nnc  IN A   10.0.10.10
+w-ncc  IN A   10.0.10.10
+f-nnc  IN A   10.0.10.20
+f-ncc  IN A   10.0.10.20
+www    IN CNAME w-nnc
+ftp    IN CNAME f-nnc
+```
+
+Las zonas inversas (`db.10.0.20` y `db.10.0.10`) tienen los registros PTR de `r-nnc`, `b-nnc`, `w-nnc` y `f-nnc`.
+
+Un comodín tipo `*-nnc` no vale en DNS (el asterisco solo funciona como etiqueta completa), por eso los hosts están puestos uno a uno.
+
+```
+sudo named-checkconf
+sudo named-checkzone sitioitb.cat /etc/bind/db.sitioitb.cat
+sudo systemctl enable --now named
+sudo systemctl restart named
+```
+
+### DHCP (isc-dhcp-server)
+
+`/etc/default/isc-dhcp-server`:
+
+```
+INTERFACESv4="enp3s0"
+```
+
+`/etc/dhcp/dhcpd.conf`:
+
+```
+authoritative;
+default-lease-time 600;
+max-lease-time 7200;
+
+subnet 10.0.20.0 netmask 255.255.255.0 {
+    range 10.0.20.100 10.0.20.200;
+    option routers 10.0.20.1;
+    option domain-name-servers 10.0.20.10;
+    option domain-name "sitioitb.cat";
+    option broadcast-address 10.0.20.255;
+}
+```
+
+```
+sudo dhcpd -t -cf /etc/dhcp/dhcpd.conf
+sudo systemctl enable --now isc-dhcp-server
+```
+
+Los clientes reciben IP entre `10.0.20.100` y `10.0.20.200`, gateway `10.0.20.1` y DNS `10.0.20.10`.
+
+### MySQL y carga del CSV
+
+MySQL 8. Para que la web de W-NNC pueda conectar, MySQL escucha en todas las interfaces. En `/etc/mysql/mysql.conf.d/mysqld.cnf`:
+
+```
+bind-address = 0.0.0.0
+```
+
+```
+sudo systemctl enable --now mysql
+sudo systemctl restart mysql
+```
+
+Base de datos y usuario (acceso desde local, DMZ e intranet):
+
+```
+SET GLOBAL local_infile = 1;
+CREATE DATABASE equipaments CHARACTER SET utf8mb4;
+CREATE USER 'bchecker'@'localhost' IDENTIFIED BY 'bchecker121';
+CREATE USER 'bchecker'@'10.0.10.%' IDENTIFIED BY 'bchecker121';
+CREATE USER 'bchecker'@'10.0.20.%' IDENTIFIED BY 'bchecker121';
+GRANT ALL PRIVILEGES ON equipaments.* TO 'bchecker'@'localhost';
+GRANT ALL PRIVILEGES ON equipaments.* TO 'bchecker'@'10.0.10.%';
+GRANT ALL PRIVILEGES ON equipaments.* TO 'bchecker'@'10.0.20.%';
+FLUSH PRIVILEGES;
+```
+
+CSV: listado de equipamientos de educación de la ciudad de Barcelona (Open Data BCN).
+
+```
+curl -L -o /tmp/equip.csv "https://opendata-ajuntament.barcelona.cat/data/dataset/f36b60f2-9541-4d08-b0f9-b0a9313fab3d/resource/29d9ff10-6892-4f16-9012-d5c4997857e7/download"
+```
+
+El fichero viene en UTF-16, así que antes de cargarlo hay que pasarlo a UTF-8 y limpiarlo:
+
+```
+iconv -f UTF-16 -t UTF-8 /tmp/equip.csv -o /tmp/equip_utf8.csv
+mv /tmp/equip_utf8.csv /tmp/equip.csv
+sed -i '1s/^\xEF\xBB\xBF//; s/\r$//' /tmp/equip.csv
+```
+
+La cabecera es `register_id,name,institution_id,institution_name,created,modified,addresses_roadtype_id,...`. Como el CSV tiene muchas columnas, un pequeño script de Python lee la cabecera, crea la tabla con todas las columnas como `TEXT` y genera el `LOAD DATA`:
+
+```
+python3 - <<'PY'
+import csv, re
+f = open('/tmp/equip.csv', encoding='utf-8')
+hdr = next(csv.reader(f))
+cols = []
+for h in hdr:
+    c = re.sub(r'[^a-z0-9]+', '_', h.strip().lower()).strip('_') or 'col'
+    while c in cols:
+        c += '_2'
+    cols.append(c)
+defs = ", ".join("`%s` TEXT" % c for c in cols)
+names = ",".join("`%s`" % c for c in cols)
+sql = "DROP TABLE IF EXISTS equipaments;\n"
+sql += "CREATE TABLE equipaments (id INT AUTO_INCREMENT PRIMARY KEY, %s) CHARACTER SET utf8mb4;\n" % defs
+sql += "LOAD DATA LOCAL INFILE '/tmp/equip.csv' INTO TABLE equipaments CHARACTER SET utf8mb4 "
+sql += "FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' LINES TERMINATED BY '\\n' IGNORE 1 ROWS (%s);\n" % names
+open('/tmp/load.sql', 'w').write(sql)
+PY
+
+mysql --local-infile=1 equipaments < /tmp/load.sql
+```
+
+Comprobación:
+
+```
+mysql -e "SELECT COUNT(*) FROM equipaments.equipaments;"
+mysql -h 10.0.20.10 -u bchecker -pbchecker121 equipaments -e "SELECT name FROM equipaments LIMIT 5;"
+ss -tln | grep 3306
+```
+
 ## Configuración Router
 
-Configuración del fichero `/etc/network/interfaces` para establecer las conexiónes de las tarjetas de red.
+Configuración del fichero `/etc/network/interfaces` para las tarjetas de red.
 
 ```
 # This file describes the network interfaces available on your system
@@ -192,16 +403,16 @@ iface enp4s0 inet static
     address 10.0.20.1/24
 ```
 
-Una vez escrita la configuración con sudo, procedemos a ejecutar el comando `systemctl restart networking` para que se aplique los ajustes de red en las tarjetas.
+Una vez escrita la configuración con sudo, ejecutamos `systemctl restart networking` para que se apliquen los ajustes en las tarjetas.
 
-Ahora necesitamos activar el reenvio de paquetes. Lo podemos hacer fácilmente con los siguientes comandos:
+Ahora activamos el reenvío de paquetes:
 
 ```
 echo "net.ipv4.ip_forward=1" | sudo tee /etc/sysctl.d/99-router.conf
 sudo sysctl --system
 ```
 
-Una vez hecho, procedemos a instalar nftables para configurar el cortafuegos junto al NAT en el fichero `/etc/nftables.conf` (se necesita sudo):
+Después instalamos nftables para configurar el cortafuegos junto al NAT en `/etc/nftables.conf` (se necesita sudo):
 
 ```
 #!/usr/sbin/nft -f
@@ -266,4 +477,144 @@ table ip nat {
 }
 ```
 
-Lo aplícamos con `sudo nft -c -f /etc/nftables.conf` para comprobar la sintaxis y luego sudo `systemctl restart nftables` para cargar la configuración.
+Lo aplicamos con `sudo nft -c -f /etc/nftables.conf` para comprobar la sintaxis y luego `sudo systemctl restart nftables` para cargar la configuración.
+
+## Control de versiones con Git y GitHub
+
+El proyecto está en un repositorio de GitHub. El servidor B-NNC se autentica con un par de claves pública/privada, sin contraseñas.
+
+### Autenticación por clave SSH
+
+En el servidor, con el usuario `bchecker`:
+
+```
+ssh-keygen -t ed25519 -C "b-nnc" -N "" -f ~/.ssh/id_ed25519
+cat ~/.ssh/id_ed25519.pub
+```
+
+La clave pública (la línea entera que empieza por `ssh-ed25519`) se añade en GitHub, no en la terminal: repositorio, Settings, Deploy keys, Add deploy key, marcando "Allow write access". La clave privada no sale del servidor.
+
+Comprobación:
+
+```
+ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts
+ssh -T git@github.com
+```
+
+Tiene que responder con "successfully authenticated".
+
+### Configuración inicial
+
+```
+git config --global user.name "bchecker"
+git config --global user.email "bchecker@sitioitb.cat"
+git config --global init.defaultBranch main
+```
+
+### Comandos principales
+
+| Comando | Para qué sirve |
+| --- | --- |
+| `git clone git@github.com:USUARIO/projecte-zero.git` | descarga el repo la primera vez |
+| `git status` | ver qué ha cambiado |
+| `git add .` | preparar los cambios para el commit |
+| `git commit -m "mensaje"` | guardar los cambios en local con un mensaje |
+| `git push origin main` | subir los commits a GitHub |
+| `git pull origin main` | bajar los cambios nuevos de GitHub |
+| `git log --oneline` | ver el historial |
+
+### Flujo de subida a producción
+
+1. Se editan los ficheros (configuración, documentación, scripts).
+2. `git add .` y `git commit -m "descripción del cambio"`.
+3. `git push origin main` sube los cambios a GitHub.
+4. En el servidor de producción se hace `git pull origin main` para actualizar.
+
+Si el push se rechaza porque hay cambios nuevos en GitHub, primero `git pull --rebase origin main` y luego otra vez `git push`.
+
+## Pruebas
+
+### Servicios y puertos en B-NNC
+
+```
+systemctl is-active ssh named isc-dhcp-server mysql
+ss -tln | grep -E ':22 |:3306 '
+ss -uln | grep -E ':53 |:67 '
+```
+
+### Red
+
+```
+ip -br a show enp3s0      # 10.0.20.10/24
+ping -c2 10.0.20.1        # router
+ping -c2 8.8.8.8          # salida a Internet
+ping -c2 google.com       # DNS recursivo
+```
+
+### DNS
+
+```
+dig +short r.sitioitb.cat @10.0.20.10        # 10.0.20.1
+dig +short r-ncc.sitioitb.cat @10.0.20.10    # 10.0.20.1
+dig +short w-nnc.sitioitb.cat @10.0.20.10    # 10.0.10.10
+dig +short -x 10.0.20.1 @10.0.20.10          # r-nnc.sitioitb.cat.
+```
+
+### DHCP
+
+Arrancar PC-Linux y PC-W11 en la intranet y comprobar que reciben IP entre 10.0.20.100 y 10.0.20.200, gateway 10.0.20.1 y DNS 10.0.20.10. En Linux con `ip a` y `resolvectl status`, en Windows con `ipconfig /all`. Los leases se ven en `/var/lib/dhcp/dhcpd.leases`.
+
+### MySQL
+
+```
+mysql -e "SELECT COUNT(*) FROM equipaments.equipaments;"
+mysql -h 10.0.20.10 -u bchecker -pbchecker121 equipaments -e "SELECT COUNT(*) FROM equipaments;"
+```
+
+Desde W-NNC, la aplicación web tiene que poder conectar a `10.0.20.10:3306` y mostrar el contenido de la tabla `equipaments`.
+
+### Git
+
+```
+ssh -T git@github.com
+git -C ~/projecte-zero status
+git -C ~/projecte-zero push
+```
+
+## Problemas encontrados y cómo se arreglaron
+
+### `systemctl enable bind9` falla
+
+Error: `Refusing to operate on alias name or linked unit file: bind9.service`.
+Causa: en Ubuntu 22.04 `bind9` es un alias del servicio `named`.
+Solución: usar `systemctl enable --now named` (y `restart named`).
+
+### El CSV da error de codificación
+
+Error de Python: `UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff`.
+Causa: el CSV de Open Data BCN viene en UTF-16.
+Solución: convertirlo con `iconv -f UTF-16 -t UTF-8` antes de cargarlo.
+
+### Sin Internet después de poner la IP estática
+
+Síntomas: `apt-get update` da `Network is unreachable` y los repositorios no tienen Release file.
+Causa: con la IP estática `10.0.20.10` la salida depende del router (`10.0.20.1`), que tiene que reenviar paquetes y hacer NAT.
+Solución: comprobar con ping a `10.0.20.1`, `8.8.8.8` y `google.com`. En el router tiene que estar `net.ipv4.ip_forward=1` y la regla `masquerade` de nftables en la interfaz WAN, además de la regla de forward de la intranet hacia la WAN.
+
+### Pegar la clave pública en la terminal
+
+La línea `ssh-ed25519 AAAA...` no es un comando. Se pega en GitHub (Deploy keys), no en la terminal, porque ahí da `command not found`.
+
+## Estructura del repositorio
+
+```
+projecte-zero/
+├── README.md              esta documentación
+├── Imagenes/              esquema de red y gifs de los servicios
+│   ├── RedProyecto.png
+│   ├── webserver.gif
+│   ├── ftpserver.gif
+│   └── db_dns_dhcp_server.gif
+└── scripts/
+    └── b-nnc.sh           configuración automática de B-NNC
+```
